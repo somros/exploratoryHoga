@@ -1,32 +1,86 @@
-# script to extract the percentage cover data from the 2014 datasets for Buoy3 and Sampela (in fact
-# ideally for all the stations) and then plot them and compare them. If I were to do a proper job, this
-# should be skimming through the crude folder and extract the data I need from each excel file.
-# worth a try but don't go nuts, this is just exploratory.
+# 29.07.2016
+# Alberto.Rovellini@vuw.ac.nz
+# script to average the benthic % cover from all the stations in the Wakatobi from 2014 and plot
+# it. At the moment only a simple barchart for the cover, can come up with something better though.
+# next step is to include some formal statistic to tell the sites apart (although this must have been
+# done already). At the moment, two separate twin scripts according to the desired degree of detail of the
+# cover, but it must become a method of the same script
+
+# edit 02.08.2016
+
+# script has a flag to be set when running it to decide how to read the .xlsx files, whether
+# with the detailed cover or not. next step is to set a flag to subset which datasets
+# of the main directory must be read. ideally, in the future this should become a function
+# connected to another script where the functions of interest are called.
 
 require(XLConnect)
 require(abind)
 require(ggplot2)
 
-setwd("/home/somros/Documents/R/exploratoryHoga/input/CPC_HOLLY")
+# set flags and other settings for the script
 
+flagIsComplete <- F # set TRUE or FALSE depending on the detail of the desired % cover
+myLocations <- c("BUOY3", "SAMPELA") # type array of filenames with the locations of interest. 
+#default is NULL and reads all the data. some flexibility allowed, location name is enough but
+# it must be spelled right
+
+myDepths <- c("_5", 
+              "10")#, 
+              #"15") # sets depths of interest, please mind the "_" before 5
+
+setwd("/home/somros/Documents/R/exploratoryHoga/input/CPC_HOLLY")
 listOfSheets <- list.files("/home/somros/Documents/R/exploratoryHoga/input/CPC_HOLLY",
                            pattern = ".xls", recursive = T)
 
+# subsets the list of files to be read into the script basing on the myLocation
 
-spreadsheetReader <- function(spreadsheet) {
+locationsOfInterest <- list() # initiate list
+for (i in myLocations) {
+  locationsOfInterest[[i]] <- subset(listOfSheets, grepl(i, listOfSheets))
+}
+locationsOfInterest <- unlist(locationsOfInterest)
+
+# does the same for the depth
+
+depthOfInterest <- list()
+for (i in myDepths) {
+  depthOfInterest[[i]] <- subset(locationsOfInterest, grepl(i, locationsOfInterest))
+}
+
+dataOfInterest <- unlist(depthOfInterest)
+
+# if the dataOfInterest is NULL because of myLocation being NULL, the scripts loops over the whole 
+# list of data
+
+if (is.null(dataOfInterest)) {
+  listOfSheets <- listOfSheets
+} else {
+  listOfSheets <- dataOfInterest
+}
+
+
+# reads the 2014 data sheets depending on the selected flag
+
+spreadsheetReader <- function(spreadsheet, isComplete) {
   book <- loadWorkbook(spreadsheet)
-  summaryData <- readWorksheet(book, "Data Summary", startRow = 10, endRow = 24,
+  if (isComplete==T) {
+    summaryData <- readWorksheet(book, "Data Summary", startRow = 27, endRow = 65,
+                                 startCol = 1, endCol = 2)
+  } else {
+  summaryData <- readWorksheet(book, "Data Summary", startRow = 10, endRow = 23,
                                startCol = 1, endCol = 2)
+  }
   summaryData$Location <- rep(substr(spreadsheet, 1, nchar(spreadsheet)-5), nrow(summaryData))
   colnames(summaryData) <- c("Category", "% cover", "Location")
   summaryData <- summaryData[complete.cases((summaryData)),]
   return(summaryData)
 }
 
-listOfSets <- lapply(listOfSheets, spreadsheetReader)
+listOfSets <- lapply(listOfSheets, spreadsheetReader, flagIsComplete)
 
 # now all the datasets are stored in a list. replicates from same depth of same site must be averaged
 # rearrange list to list of one frame per depth per site with the three replicates as columns
+
 
 # create list with the location names, i.e. site and depth but no replicate
 
@@ -104,35 +158,42 @@ colnames(meansData) <- c("Location", "Category", "Mean", "StdErr")
 
 meansData <- meansData[order(meansData$Location),]
 
-# substitute _5 with _05
 
+# fix levels of factor as per usual. how about learning to use attach someday?
 
-# subset to buoy 3 only
+meansData$Category <- factor(as.character(meansData$Category), levels = unique(meansData$Category))
 
-buoy3 <- subset(meansData, grepl("BUOY3", meansData$Location))
+# set factors of the location for the faceting of the plot
+charFac <- as.character(meansData$Location)
+meansData$facetFactors <- factor(substr(charFac, 
+                              nchar(charFac)-1, 
+                              nchar(charFac)))
+# plot, will need to become automated as function to plot specified locations to be entered at 
+# the beginning. then again if I want to automate I should do it on reading a subset of the
+# data and plot it all afterwards, instead of subsetting the whole thing after dragging it
+# around without needing it for the whole script
+# 
 
-# and buoy3 vs sampela at common depths only
-
-buoy3Sampela <- subset(meansData, grepl("BUOY3", meansData$Location) & meansData$Location!="BUOY3_15" | 
-                         grepl("SAMPELA", meansData$Location))
-
-p <- ggplot(data=buoy3Sampela, aes(x = Location, y = Mean, fill = Category))+
-  geom_bar(stat = "identity", position = "dodge", width = .7)+
-  geom_errorbar(data = buoy3Sampela, 
-                aes(ymax = Mean + StdErr, ymin = Mean - StdErr),
-                position = "dodge", width = .7)+
+p <- ggplot(data=meansData, aes(x = Location, y = Mean, fill = Category))+
+  geom_bar(stat = "identity", width = .7)+
+  # geom_errorbar(data = buoy3Sampela, 
+  #               aes(ymax = Mean + StdErr, ymin = Mean - StdErr),
+  #               width = .7)+
+  scale_fill_grey(start = 0, end = 0.95)+
+  labs(y = "Average % cover")+
   theme_bw()+
   theme(panel.grid.minor = element_blank(), 
         panel.grid.major = element_blank())+
   theme(plot.title = element_text(size=14, vjust=2))+
   theme(axis.title.x = element_text(size=10,vjust=-0.5),
         axis.title.y = element_text(size=10,vjust=0.5))+
-  theme(axis.text.x=element_text(size=10))+
-  theme(axis.text.y=element_text(size=10))
+  theme(axis.text.x=element_text(size=10, angle = 45, vjust = 0.5))+
+  theme(axis.text.y=element_text(size=10))+
+  facet_grid(. ~ facetFactors, scales = "free")
 p
 
-ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/benthicCover.pdf", p,
-       width=8, height=6, useDingbats=T)
+#ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/benthicCover.pdf", p,
+       #width=8, height=6, useDingbats=T)
 
 
 

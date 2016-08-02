@@ -1,13 +1,15 @@
-# script to extract the percentage cover data from the 2014 datasets for Buoy3 and Sampela (in fact
-# ideally for all the stations) and then plot them and compare them. If I were to do a proper job, this
-# should be skimming through the crude folder and extract the data I need from each excel file.
-# worth a try but don't go nuts, this is just exploratory.
+# 29.07.2016
+# Alberto.Rovellini@vuw.ac.nz
+# script to average the benthic % cover from all the stations in the Wakatobi from 2014 and plot
+# it. At the moment only a simple barchart for the cover, can come up with something better though.
+# next step is to include some formal statistic to tell the sites apart (although this must have been
+# done already). At the moment, two separate twin scripts according to the desired degree of detail of the
+# cover, but it must become a method of the same script
 
 require(XLConnect)
 require(abind)
 require(ggplot2)
 
-setwd("/home/somros/Documents/R/exploratoryHoga/input/CPC_HOLLY")
 
 listOfSheets <- list.files("/home/somros/Documents/R/exploratoryHoga/input/CPC_HOLLY",
                            pattern = ".xls", recursive = T)
@@ -121,7 +123,9 @@ p <- ggplot(data=buoy3, aes(x = Location, y = Mean, fill = Category))+
   theme(axis.text.x=element_text(size=10))+
   theme(axis.text.y=element_text(size=10))
 p
-p
+
+ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/benthicCoverComplete.pdf", p,
+       width=8, height=6, useDingbats=T)
 
 
 
