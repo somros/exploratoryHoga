@@ -1,12 +1,15 @@
 # 27/07/2016 script to open and explore the abundance data from Buoy3
 # Alberto.Rovellini@vuw.ac.nz
 
+# 02.08.2016 script reads from .csv because .xlsx is very messy. Goal now is to analyse a bit better the available
+# data, such as the most abundant species and so on, limit the analysis to those species.
+
 require(abind)
 require(plyr)
 require(ggplot2)
 require(reshape2)
 
-data <- read.csv("/home/somros/Documents/R/exploratoryHoga/input/spongeAbundanceQuadrats.csv")
+dataAllYears <- read.csv("/home/somros/Documents/R/exploratoryHoga/input/spongeAbundanceQuadrats.csv")
 
 # initiate information about the dataset
 
@@ -33,19 +36,19 @@ speciesOrDescription <- unlist(speciesOrDescription) #
 
 # follows general information about the dataset, such as number of years, quadrats, sites and so on
 
-years <- as.numeric(levels(factor(substr(names(data),2,3))))
+years <- as.numeric(levels(factor(substr(names(dataAllYears),2,3))))
 years <- years[is.na(years)==F] # getting rid of the NA and being left with only the years
-quadrats <- as.numeric(levels(factor(substr(names(data), nchar(names(data)), nchar(names(data))))))
+quadrats <- as.numeric(levels(factor(substr(names(dataAllYears), nchar(names(dataAllYears)), nchar(names(dataAllYears))))))
 quadrats <- quadrats[is.na(quadrats)==F]# number of quadrats per site
-dataColumns <- ncol(data)-1 # number of quadrats in all sites in all years, effectivelty number of columns in the frame
-
+dataColumns <- ncol(dataAllYears)-1 # number of quadrats in all sites in all years, effectivelty number of columns in the frame
+sites <- c("A", "B", "C")
 
 # each data column is a quadrat. There are five quadrats per site. first letter of the header is X because 
 # read.csv() (and read.table() for that matter) do not allow a column name to start wit a number. 
 # first 2 digits after X are the year (05 to 16). S is site, and second to last letter (A, B or C) is the site code.
 # final digit is the quadrat within the site.
 
-# a way to go is to add the quadrats and average between sites.
+# a way to go is to add the quadrats and average between sites. how big are even the quadrats??
 
 
 # all the columns need to be turned to numeric. some typos in the excel spreadsheet might cause the columns to be
@@ -55,25 +58,25 @@ dataColumns <- ncol(data)-1 # number of quadrats in all sites in all years, effe
 
 # cut the whole thing to the first 125 rows, as below that it gets confused
 
-data <- data[1:124,]
+dataAllYears <- dataAllYears[1:124,]
 
-for (i in 1:ncol(data)) {
-  if (is.numeric(data[,i])==T) {
-    data[,i] <- data[,i]
+for (i in 1:ncol(dataAllYears)) {
+  if (is.numeric(dataAllYears[,i])==T) {
+    dataAllYears[,i] <- dataAllYears[,i]
   } else {
-    data[,i] <- as.numeric(levels(data[,i])[data[,i]]) # this removes everything that won't fit as numeric
+    dataAllYears[,i] <- as.numeric(levels(dataAllYears[,i])[dataAllYears[,i]]) # this removes everything that won't fit as numeric
   }
 }
 
-data[is.na(data)] <- 0 # turns NAs to zeroes
+dataAllYears[is.na(dataAllYears)] <- 0 # turns NAs to zeroes
 
 # the following is completely unacceptable but I need to keep going
-# objective of the following code is to create a list of data frames. each element of the list is opne frame for
+# objective of the following code is to create a list of data frames. each element of the list is one frame for
 # one of the sites at one of the years. column with the species id is not necessary
 
 indices <- list() # initiate empty list for the loop
 
-for (i in 1:(dataColumns/quadrats)) {
+for (i in 1:(dataColumns/length(quadrats))) {
   indices[[i]] <- (1:5)+5*i-4
 }
 
@@ -82,7 +85,7 @@ for (i in 1:(dataColumns/quadrats)) {
 listColumns <- list()
 
 for (i in 1:length(indices)) {
-  listColumns[[i]] <- data.frame(data[,indices[[i]]])
+  listColumns[[i]] <- data.frame(dataAllYears[,indices[[i]]])
 }
 
 quadratsSums <- lapply(listColumns, rowSums) # here the quadrats for one site are added up. can also be averaged
@@ -93,7 +96,7 @@ siteFrame <- abind(quadratsSums, along=2) # back to a data frame structure, now 
 
 indicesSites <- list()
 
-for (i in 1:(dataColumns/quadrats/length(sites))) {
+for (i in 1:(dataColumns/length(quadrats)/length(sites))) {
   indicesSites[[i]] <- (1:3)+3*i-3
 }
 
@@ -114,6 +117,39 @@ head(finalFrame)
 
 restrictedFrame <- finalFrame[identified[,1],] # yep
 restrictedFrame$Species <- identified$Species.name
+
+
+
+# diagnostic and exploratory region
+
+totalSpongeNumber <- data.frame(colSums(restrictedFrame[,-length(restrictedFrame)]), 
+                                as.numeric(colnames(restrictedFrame[,-length(restrictedFrame)])))
+colnames(totalSpongeNumber) <- c("Number","Year")
+
+totalSpongePlot <- ggplot(data=totalSpongeNumber, aes(x=Year, y=Number))+
+  geom_line()+
+  geom_point()+
+  scale_x_continuous(breaks = seq(5,16,1),
+                   labels = seq(5,16,1),
+                   limits = c(5,16))+
+  scale_y_continuous(limits = c(0,1000),
+                     breaks = seq(0,1000,100))+
+  theme_bw()+
+  theme(panel.grid.minor = element_blank(), 
+        panel.grid.major = element_blank())+
+  theme(plot.title = element_text(size=14, vjust=2))+
+  theme(axis.title.x = element_text(size=10,vjust=-0.5),
+        axis.title.y = element_text(size=10,vjust=0.5))+
+  theme(axis.text.x=element_text(size=10))+
+  theme(axis.text.y=element_text(size=10))
+totalSpongePlot
+
+
+
+
+
+
+
 meltedFrame <- melt(restrictedFrame, 
                     variable.name = "Year",
                     value.name = "Number", id.vars = "Species")

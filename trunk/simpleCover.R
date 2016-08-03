@@ -17,6 +17,8 @@ require(XLConnect)
 require(abind)
 require(ggplot2)
 
+setwd("/home/somros/Documents/R/exploratoryHoga/input/CPC_HOLLY")
+
 # set flags and other settings for the script
 
 flagIsComplete <- F # set TRUE or FALSE depending on the detail of the desired % cover
@@ -28,7 +30,6 @@ myDepths <- c("_5",
               "10")#, 
               #"15") # sets depths of interest, please mind the "_" before 5
 
-setwd("/home/somros/Documents/R/exploratoryHoga/input/CPC_HOLLY")
 listOfSheets <- list.files("/home/somros/Documents/R/exploratoryHoga/input/CPC_HOLLY",
                            pattern = ".xls", recursive = T)
 
@@ -168,6 +169,7 @@ charFac <- as.character(meansData$Location)
 meansData$facetFactors <- factor(substr(charFac, 
                               nchar(charFac)-1, 
                               nchar(charFac)))
+meansData$facetFactors <- factor(paste(meansData$facetFactors, "m", sep = " "))
 # plot, will need to become automated as function to plot specified locations to be entered at 
 # the beginning. then again if I want to automate I should do it on reading a subset of the
 # data and plot it all afterwards, instead of subsetting the whole thing after dragging it
@@ -192,8 +194,8 @@ p <- ggplot(data=meansData, aes(x = Location, y = Mean, fill = Category))+
   facet_grid(. ~ facetFactors, scales = "free")
 p
 
-#ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/benthicCover.pdf", p,
-       #width=8, height=6, useDingbats=T)
+ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/benthicCover.pdf", p,
+       width=8, height=6, useDingbats=T)
 
 
 
