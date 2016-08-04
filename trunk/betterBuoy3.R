@@ -95,8 +95,8 @@ if (flagRoutine == "sum") {
 } else {
   electedFunction <- function(i) {
     meanColumn <- rowMeans(dataAllYears[,i])
-    sdColumn <- apply(dataAllYears[,i], 1, sd)
-    cbind(meanColumn, sdColumn)
+    varColumn <- apply(dataAllYears[,i], 1, sd)
+    cbind(meanColumn, (varColumn)^2) # to get the variance, used for the propagation
   }
 }
 
@@ -106,7 +106,7 @@ sitesFrame$Species <- speciesOrDescription
 # reorganize the dataframe with first the means and then the sd
 
 sitesFrame <- cbind(sitesFrame[,grepl("mean", names(sitesFrame))], 
-                    sitesFrame[,grepl("sd", names(sitesFrame))])
+                    sitesFrame[,grepl("V", names(sitesFrame))])
 
 
 ################################################################################################################
@@ -163,8 +163,9 @@ dominantPerc <- lapply(sortedMostAbundant, chainsaw)
 # here I must calculate the grand mean and the grand sd. ominous
 # for the purpose, I split the original frame into 2 though
 
+
 sitesFrameMeans <- sitesFrame[,grepl("mean", names(sitesFrame))]
-sitesFrameSd <- sitesFrame[,grepl("sd", names(sitesFrame))]
+sitesFrameVar <- sitesFrame[,grepl("V", names(sitesFrame))]
 
 
 m <- 1:ncol(sitesFrameMeans)
@@ -173,8 +174,31 @@ noNAYears <- sapply(indYears, function(x) all(!is.na(x)))
 indYears <- indYears[, noNAYears]
 
 yearsFrame <- as.data.frame(do.call(cbind, lapply(indYears, function(i) rowMeans(sitesFrameMeans[,i])))) # it seems to be working although I don't know how
-yearsFrame$Species <- speciesOrDescription
-colnames(yearsFrame) <- c(years, "Species")
+#yearsFrame$Species <- speciesOrDescription
+#colnames(yearsFrame) <- c(years, "Species")
+
+# define function to calculate the combined sd according to
+# GSD = sqrt((ESS+TGSS)/N-1)
+# ESS <- (var1*dof1) + (var2*dof2) + ... + (varN*dofN) # where n is the group, i.e. the site A B C, i.e. the column
+# TGSS <- (µ1-GM)^2 * n1 + (µ2-GM)^2 * n2 + ... + (µN-GM)^2 * nN
+
+yearsFrameCheat <- cbind(yearsFrame, yearsFrame, yearsFrame)
+columnIndex <- c(1,11,21,2,12,22,3,13,23,4,14,24,5,15,25,6,16,26,7,17,27,8,18,28,9,19,29,10,20,30) # please don't
+
+yearsFrameCheat <- yearsFrameCheat[,columnIndex] 
+
+GSDcalculator <- function(x) {
+  ESS <- rowSums(sitesFrameVar[,x]*(length(quadrats)-1)) # so far so good, don't chack again
+  TGSS <- rowSums((sitesFrameMeans[,x]-yearsFrameCheat[,x])^2*length(quadrats)) # faulted SON OF A BITCH WILL MESS THE COLUMNS
+  GSD <- sqrt((ESS+TGSS)/(length(years)-1))
+  return(GSD)  
+}
+
+GSDframe <- as.data.frame(do.call(cbind, lapply(indYears, GSDcalculator))) 
+
+# now put species, means and sd together
+
+completeFrame <- cbind(speciesOrDescription, yearsFrame, GSDframe)
 
 ## propagation of sd is a pain in the ass to calculate, need to come back to it when I'm fresh
 
