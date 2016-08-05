@@ -198,15 +198,21 @@ GSDframe <- as.data.frame(do.call(cbind, lapply(indYears, GSDcalculator)))
 
 # now put species, means and sd together
 
-completeFrame <- cbind(speciesOrDescription, yearsFrame, GSDframe)
+yearsFrame$Species <- speciesOrDescription
+colnames(yearsFrame) <- c(years, "Species")
 
-## propagation of sd is a pain in the ass to calculate, need to come back to it when I'm fresh
-
+GSDframe$Species <- speciesOrDescription
+colnames(GSDframe) <- c(years, "Species")
 
 meltYears <- melt(yearsFrame, id.vars = "Species", variable.name = "Year", value.name = "Mean" )
 meltYears$Year <- as.numeric(as.character(meltYears$Year))
+meltGSD <- melt(GSDframe, id.vars = "Species", variable.name = "Year", value.name = "GSD" )
 
-p <- ggplot(data = meltYears, aes(x = Year, y = Mean, group = Species, fill = Species))+
+meltComplete <- cbind(meltYears, meltGSD$GSD)
+
+# area chart
+
+area <- ggplot(data = meltComplete, aes(x = Year, y = Mean, group = Species, fill = Species))+
   geom_area()+
   guides(fill = F)+
   scale_x_continuous(breaks = seq(5,16,1),
@@ -222,7 +228,15 @@ p <- ggplot(data = meltYears, aes(x = Year, y = Mean, group = Species, fill = Sp
         axis.title.y = element_text(size=10,vjust=0.5))+
   theme(axis.text.x=element_text(size=10))+
   theme(axis.text.y=element_text(size=10))
-p
+area
+
+# barchart
+
+bar <- ggplot(data = meltComplete, aes(x = Year, y = Mean, group = Species, fill = Species))+
+  geom_bar(stat = "identity")+
+  guides(fill = F)
+bar
+
 
 # all the possible entries are plotted. script needs to be adapted to include only the desired species, i.e. to
 # restrict the analysis to either the most abundant or the complete cases. Keep in mind that this is only the number
@@ -230,8 +244,7 @@ p
 
 
 
-
-
+??melt
 
 
 
