@@ -4,6 +4,20 @@
 # 02.08.2016 script reads from .csv because .xlsx is very messy. Goal now is to analyse a bit better the available
 # data, such as the most abundant species and so on, limit the analysis to those species.
 
+# 08.08.2016
+# script calculates correctly the grand mean (i.e. mean of the quadrats and then mean of the three sites),
+# and also the grand standard deviation. Uncertainty is very broad among quadrats and sites. Quadrats are
+# 1 m2 and they are fixed, thus it's possible to see trends one by one in time.
+
+# main issue is that approximate identification and in any case high disaggregation leave me with little
+# information. Best way to proceed is to find a list of species that make up for the greatest bulk of the
+# dataset (say 90% of the numbers) and lump those into heterotrophic/phototrophic. James has to do this as
+# I don't know jack about sponges.
+
+# Interpretation is difficult with so many entries bu the global trends reveal poor sampling in my opinion.
+# Best way to carry on is to take the most abundant species on average and lump them at the end, as opposite 
+# to do it from early on. So analyse the final dataframe to get the most abundant entries per year (up to 90%)
+
 require(abind)
 require(plyr)
 require(ggplot2)
@@ -75,7 +89,6 @@ dataAllYears[is.na(dataAllYears)] <- 0 # turns NAs to zeroes
 
 colnames(dataAllYears) <- c(names(dataAllYears)[1],
                                   substr(names(dataAllYears[,-1]), 2, nchar(names(dataAllYears[,-1]))))
-
 
 # yet another strategy, STOLEN from SO
 
@@ -242,9 +255,208 @@ bar
 # restrict the analysis to either the most abundant or the complete cases. Keep in mind that this is only the number
 
 
+##############################################################################################
+
+# take the most abundant species from the grand mean and extract the most abundant ones. sticking to 
+# 90% of the abundance for now (from 90 to 95 it's almost double the species, many of which are undetermined
+# anyway). Writes a .csv file that can be modified in excel to enter higher taxa (coarser resolution) and 
+# functional roles, or other levels of agregation. then it reads that file in again and reorganize the 
+# completeFrame object in accordance to the desired criterion
+
+sortedMostAbundant <- list()
+for (i in 1:length(yearsFrame)) {
+  sortedMostAbundant[[i]] <- yearsFrame[order(yearsFrame[,i], decreasing = T),]
+  sortedMostAbundant[[i]] <- sortedMostAbundant[[i]][,c(length(sortedMostAbundant[[i]]),i)]
+}
+
+sortedMostAbundant <- sortedMostAbundant[-length(sortedMostAbundant)]
+
+# can decide that dominant species together account for 90% of the numbers
+
+chainsaw <- function(x, perc) {
+  # first it needs to calculate the sum of the numbers
+  sumOfNumbers <- sum(x[,2])
+  # then calculate n as in n = sumOfNumbers*domPerc / 100
+  n = sumOfNumbers*perc/100
+  # # then count how many elements of x[,2] are needed to go as big as n, where the count is z
+  v <- 0
+  z <- 0
+  for (i in 1:nrow(x)) {
+    if (v < n) {
+      v <- v + x[i,2]
+      z <- z + 1
+    } else {
+      v <- v
+      z <- z
+    }
+  }
+  # # finally subset the original frame x taking the first z counts, which should add up to the closest possible to
+  # # the chosen percentage
+  y <- x[1:z,]
+  return(y)
+  
+}
 
 
-??melt
+dominantPerc <- lapply(sortedMostAbundant, chainsaw, 90)
+dominantSpecies <- lapply(dominantPerc, function(x) {
+  x$Year <- rep(names(x[2]), nrow(x))
+  return(x)
+}
+)
+
+speciesPerc <- abind(dominantSpecies, along = 1)
+speciesPerc <- as.data.frame(speciesPerc, row.names = seq(1:nrow(speciesPerc)))
+colnames(speciesPerc) <- c("Species", "Abundance", "Year")
+speciesPerc$Abundance <- as.numeric(as.character(speciesPerc$Abundance))
+toBeDetermined <- levels(factor(speciesPerc$Species))
+
+#write.csv(speciesPerc, "/home/somros/Documents/R/exploratoryHoga/output/mostAbundant.csv")
+#write.csv(toBeDetermined, "/home/somros/Documents/R/exploratoryHoga/output/toBeDetermined.csv")
+
+criteria <- read.csv("/home/somros/Documents/R/exploratoryHoga/input/criteria.csv")
+
+head(meltComplete)
+
+# need to write a function
+
+substituteNames <- function(dataFrame, columnNumber) {
+  # starting point is melted frame. function may read it line by line, and for each entry if there is a
+  # corresponding entry in the criteria.csv file then it substitues it with it the corresponding order or
+  # family or in general column. it has to return a dataframe, which can then be split into two for the 
+  # respective operations with means and sd and so on
+  dataFrame[1,] <- as.character(dataFrame[1])
+  if (dataFrame[1,] %in% levels(criteria[,2])) {
+    dataFrame[1] <- criteria[grep(dataFrame[1], criteria[,2]),columnNumber]
+  } else {
+    dataFrame[1] <- NA
+  }
+  return(dataFrame)
+}
+
+meltComplete$Species <- as.character(meltComplete$Species)
+
+tempList <- vector(mode = "list", length = nrow(meltComplete))
+
+for(i in 1:nrow(meltComplete)) {
+  if (meltComplete[i,1] %in% levels(criteria[,2])) {
+    pattern <- meltComplete[i,1]
+    tempList[[i]] <- as.character(criteria[criteria$x == pattern, 3])
+  } else {
+    tempList[[i]] <- NA
+  }
+}
 
 
+
+orderVector <- unlist(tempList)
+
+meltComplete$Order <- orderVector
+meltComplete <- meltComplete[-1]
+meltComplete <- meltComplete[complete.cases(meltComplete),]
+
+# now need to sum over the factorized Orders, means as well as sd
+# it needs to be per year you idiot
+
+combiner <- function(z) {
+  lapply(z, function(x) {
+  yearComb <- x[1,1]
+  meanComb <- sum(x[,2])
+  sdComb <- sqrt(sum(x[,3]^2))
+  orderComb <- x[1,4]
+  y <- data.frame(yearComb, meanComb, sdComb, orderComb)
+  return(y)
+  })
+}
+
+# split apply combine
+
+# order is too specific and this will have to become custom as function
+
+byOrder <- split(meltComplete, meltComplete$Order)
+byOrderByYear <- lapply(byOrder, function(x) split(x, x$Year))
+byOrderTotal <- lapply(byOrderByYear, combiner)
+ordersByYear <- lapply(byOrderTotal, function(x) abind(x, along = 1))
+completeByOrder <- as.data.frame(abind(ordersByYear, along = 1))
+
+# messed with the classes, need to fix again
+
+completeByOrder$meanComb <- as.numeric(as.character(completeByOrder$meanComb))
+completeByOrder$sdComb <- as.numeric(as.character(completeByOrder$sdComb))
+completeByOrder$yearComb <- as.numeric(as.character(completeByOrder$yearComb))
+colnames(completeByOrder) <- c("Year", "Mean", "SD", "Order")
+
+# so far so good. now plotting finally
+
+area <- ggplot(data = completeByOrder, aes(x = Year, y = Mean, group = Order, fill = Order))+
+  geom_area()+
+  scale_x_continuous(breaks = seq(5,16,1),
+                     labels = seq(5,16,1),
+                     limits = c(5,16))+
+  scale_y_continuous(limits = c(0,200),
+                     breaks = seq(0,200,50),
+                     name = "Sponge abundance")+
+  theme_bw()+
+  theme(panel.grid.minor = element_blank(), 
+        panel.grid.major = element_blank())+
+  theme(plot.title = element_text(size=14, vjust=2))+
+  theme(axis.title.x = element_text(size=10,vjust=-0.5),
+        axis.title.y = element_text(size=10,vjust=0.5))+
+  theme(axis.text.x=element_text(size=10))+
+  theme(axis.text.y=element_text(size=10))
+area
+
+# barchart
+
+bar <- ggplot(data = completeByOrder, aes(x = Year, y = Mean, group = Order, fill = Order))+
+  geom_bar(stat = "identity")+
+  scale_x_continuous(breaks = seq(5,16,1),
+                     labels = seq(5,16,1),
+                     limits = c(4,17))+
+  scale_y_continuous(limits = c(0,200),
+                     breaks = seq(0,200,50),
+                     name = "Sponge abundance")+
+  theme_bw()+
+  theme(panel.grid.minor = element_blank(), 
+        panel.grid.major = element_blank())+
+  theme(plot.title = element_text(size=14, vjust=2))+
+  theme(axis.title.x = element_text(size=10,vjust=-0.5),
+        axis.title.y = element_text(size=10,vjust=0.5))+
+  theme(axis.text.x=element_text(size=10))+
+  theme(axis.text.y=element_text(size=10))
+bar
+
+# lineplot
+
+lineplot <- ggplot(data = completeByOrder, 
+                   aes(x = Year, y = Mean, group = Order, color = Order))+
+  geom_line()+
+  geom_point()+
+  guides(fill = F)+
+  geom_errorbar(data = completeByOrder,
+                aes(ymax = completeByOrder$Mean + completeByOrder$SD,
+                    ymin = completeByOrder$Mean - completeByOrder$SD))+
+  scale_x_continuous(breaks = seq(5,16,1),
+                     labels = seq(5,16,1),
+                     limits = c(5,16))+
+  scale_y_continuous(limits = c(-30,100),
+                     breaks = seq(-30,100,10),
+                     name = "Sponge abundance")+
+  theme_bw()+
+  theme(panel.grid.minor = element_blank(), 
+        panel.grid.major = element_blank())+
+  theme(plot.title = element_text(size=14, vjust=2))+
+  theme(axis.title.x = element_text(size=10,vjust=-0.5),
+        axis.title.y = element_text(size=10,vjust=0.5))+
+  theme(axis.text.x=element_text(size=10))+
+  theme(axis.text.y=element_text(size=10))+
+  facet_wrap( ~ Order, nrow = 2 )
+lineplot
+
+ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceArea.pdf", area,
+       width=6, height=4, useDingbats=T)
+ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceBars.pdf", bar,
+       width=6, height=4, useDingbats=T)
+ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceLines.pdf", lineplot,
+       width=14, height=8, useDingbats=T)
 
