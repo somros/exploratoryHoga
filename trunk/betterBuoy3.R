@@ -385,17 +385,26 @@ completeByOrder$meanComb <- as.numeric(as.character(completeByOrder$meanComb))
 completeByOrder$sdComb <- as.numeric(as.character(completeByOrder$sdComb))
 completeByOrder$yearComb <- as.numeric(as.character(completeByOrder$yearComb))
 colnames(completeByOrder) <- c("Year", "Mean", "SD", "Order")
+rownames(completeByOrder) <- seq(1, nrow(completeByOrder))
 
 # so far so good. now plotting finally
 
+library(RColorBrewer)
+par(mar = c(0, 4, 0, 0))
+display.brewer.all()
+nOfColors <- length(levels(completeByOrder$Order))
+getPalette <- colorRampPalette(brewer.pal(11, "BrBG"))
+#myPalette <- doublePalette[seq(3,length(doublePalette),1)]
+
 area <- ggplot(data = completeByOrder, aes(x = Year, y = Mean, group = Order, fill = Order))+
   geom_area()+
+  scale_fill_manual(values = getPalette(nOfColors))+
   scale_x_continuous(breaks = seq(5,16,1),
                      labels = seq(5,16,1),
                      limits = c(5,16))+
-  scale_y_continuous(limits = c(0,200),
-                     breaks = seq(0,200,50),
-                     name = "Sponge abundance")+
+  scale_y_continuous(limits = c(0,180),
+                     breaks = seq(0,180,20))+
+  labs(y=expression(paste(Sponge~density~(n~m^2))))+
   theme_bw()+
   theme(panel.grid.minor = element_blank(), 
         panel.grid.major = element_blank())+
@@ -413,9 +422,10 @@ bar <- ggplot(data = completeByOrder, aes(x = Year, y = Mean, group = Order, fil
   scale_x_continuous(breaks = seq(5,16,1),
                      labels = seq(5,16,1),
                      limits = c(4,17))+
-  scale_y_continuous(limits = c(0,200),
-                     breaks = seq(0,200,50),
-                     name = "Sponge abundance")+
+  scale_y_continuous(limits = c(0,180),
+                     breaks = seq(0,180,20))+
+  scale_fill_manual(values = getPalette(nOfColors))+
+  labs(y=expression(paste(Sponge~density~(n~m^2))))+
   theme_bw()+
   theme(panel.grid.minor = element_blank(), 
         panel.grid.major = element_blank())+
@@ -429,19 +439,20 @@ bar
 # lineplot
 
 lineplot <- ggplot(data = completeByOrder, 
-                   aes(x = Year, y = Mean, group = Order, color = Order))+
+                   aes(x = Year, y = Mean, group = Order))+
   geom_line()+
   geom_point()+
   guides(fill = F)+
   geom_errorbar(data = completeByOrder,
                 aes(ymax = completeByOrder$Mean + completeByOrder$SD,
-                    ymin = completeByOrder$Mean - completeByOrder$SD))+
-  scale_x_continuous(breaks = seq(5,16,1),
-                     labels = seq(5,16,1),
+                    ymin = completeByOrder$Mean - completeByOrder$SD,
+                    width = .2))+
+  scale_x_continuous(breaks = seq(5,16,2),
+                     labels = seq(5,16,2),
                      limits = c(5,16))+
   scale_y_continuous(limits = c(-30,100),
-                     breaks = seq(-30,100,10),
-                     name = "Sponge abundance")+
+                     breaks = seq(-30,100,20))+
+  labs(y=expression(paste(Sponge~density~(n~m^2))))+
   theme_bw()+
   theme(panel.grid.minor = element_blank(), 
         panel.grid.major = element_blank())+
@@ -450,13 +461,18 @@ lineplot <- ggplot(data = completeByOrder,
         axis.title.y = element_text(size=10,vjust=0.5))+
   theme(axis.text.x=element_text(size=10))+
   theme(axis.text.y=element_text(size=10))+
-  facet_wrap( ~ Order, nrow = 2 )
+  facet_wrap( ~ Order, nrow = 3 )
 lineplot
 
 ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceArea.pdf", area,
-       width=6, height=4, useDingbats=T)
+       width=5, height=3, useDingbats=T)
 ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceBars.pdf", bar,
-       width=6, height=4, useDingbats=T)
+       width=5, height=3, useDingbats=T)
 ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceLines.pdf", lineplot,
-       width=14, height=8, useDingbats=T)
+       width=9, height=10, useDingbats=T)
+
+# calculates the coefficient of variation
+
+head(completeByOrder)
+completeByOrder$CV <- completeByOrder$SD/completeByOrder$Mean
 

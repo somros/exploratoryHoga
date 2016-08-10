@@ -21,7 +21,7 @@ setwd("/home/somros/Documents/R/exploratoryHoga/input/CPC_HOLLY")
 
 # set flags and other settings for the script
 
-flagIsComplete <- F # set TRUE or FALSE depending on the detail of the desired % cover
+flagIsComplete <- F # set TRUE for detailed cover and FALSE for lumped categories
 myLocations <- c("BUOY3", "SAMPELA") # type array of filenames with the locations of interest. 
 #default is NULL and reads all the data. some flexibility allowed, location name is enough but
 # it must be spelled right
@@ -176,12 +176,20 @@ meansData$facetFactors <- factor(paste(meansData$facetFactors, "m", sep = " "))
 # around without needing it for the whole script
 # 
 
-p <- ggplot(data=meansData, aes(x = Location, y = Mean, fill = Category))+
+library(RColorBrewer)
+par(mar = c(0, 4, 0, 0))
+display.brewer.all()
+nOfColors <- length(levels(meansData$Category))
+getPalette <- colorRampPalette(brewer.pal(11, "BrBG"))
+#myPalette <- doublePalette[seq(3,length(doublePalette),1)]
+
+barCover <- ggplot(data=meansData, aes(x = Location, y = Mean, fill = Category))+
   geom_bar(stat = "identity", width = .7)+
   # geom_errorbar(data = buoy3Sampela, 
   #               aes(ymax = Mean + StdErr, ymin = Mean - StdErr),
   #               width = .7)+
-  scale_fill_grey(start = 0, end = 0.95)+
+  #scale_fill_grey(start = 0, end = 0.95)+
+  scale_fill_manual(values = getPalette(nOfColors))+
   labs(y = "Average % cover")+
   theme_bw()+
   theme(panel.grid.minor = element_blank(), 
@@ -189,13 +197,16 @@ p <- ggplot(data=meansData, aes(x = Location, y = Mean, fill = Category))+
   theme(plot.title = element_text(size=14, vjust=2))+
   theme(axis.title.x = element_text(size=10,vjust=-0.5),
         axis.title.y = element_text(size=10,vjust=0.5))+
-  theme(axis.text.x=element_text(size=10, angle = 45, vjust = 0.5))+
+  theme(axis.text.x=element_text(size=10, angle = 45, 
+                                 hjust = 1, vjust = .9))+
   theme(axis.text.y=element_text(size=10))+
   facet_grid(. ~ facetFactors, scales = "free")
-p
 
-ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/benthicCover.pdf", p,
-       width=8, height=6, useDingbats=T)
+barCover
+
+ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/benthicCoverBuoy3Sampela.pdf", barCover,
+        width=5, height=4, useDingbats=T)
+
 
 
 
