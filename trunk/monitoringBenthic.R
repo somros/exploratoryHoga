@@ -1,6 +1,10 @@
 # 09.08.2016 Alberto.Rovellini@vuw.ac.nz
 # this is a script to read the opwall monitoring data
 
+# 11.08.2016 Script is a bit better now. Next thing to do is to order the factors of the location
+# for the plotting, but the renaming of the empty benthic types is working now and the code is
+# better commented
+
 # rename in a way that all object in the project have unique names please
 
 require(XLConnect)
@@ -16,10 +20,10 @@ listOfSheets <- list.files("/home/somros/Documents/Data/Hoga/MonitoringProgram",
                            pattern = "Benthic", recursive = T)
 
 setSiteName <- c("B3", "S1")
-setLocationName <- c("F", "C", "S")
+setDepthName <- c("F", "C", "S")
 setReplicate <- 1:3
 namesOfSheets <- as.vector(sapply(setSiteName,
-                               function(x) {c(paste(x, as.vector(sapply(setLocationName,
+                               function(x) {c(paste(x, as.vector(sapply(setDepthName,
                                                                         function(x) {c(paste(".", x, setReplicate, sep = ""))})), 
                                                     sep = ""))}))
 namesOfLocations <- substr(namesOfSheets, 1, nchar(namesOfSheets)-1)
@@ -32,7 +36,7 @@ monitBentReader <- function(spreadsheet) {
   bookSheets <- getSheets(book)
   for (i in bookSheets) {
     summaryData[[i]] <- readWorksheet(book, i, startRow = 1, endRow = 202,
-                                      startCol = 1, endCol = 8)
+                                      startCol = 1, endCol = 4)
   }
   return(summaryData)
 }
@@ -41,17 +45,23 @@ listOfBenthicTransectsTmp <- lapply(listOfSheets, monitBentReader)
 # for some reason the function read 18 empty entries, need to investigate
 listOfBenthicTransects <- lapply(listOfBenthicTransectsTmp, function(x) x[19:27]) # list of 2 lists of 9 dataframe each. each level 1 list is one location, each level 2 a transect
 
-# might want to have a single list instead
+# lump all lists into one single list
 
-benthicTransects <- c(listOfBenthicTransects[[1]], listOfBenthicTransects[[2]]) # merge into 1 list
-benthicTransects <- lapply(benthicTransects, function(x) x[-c(5:8)]) # get rid of useless columns, need to specify this in the reading routine instead
+benthicTransects <- listOfBenthicTransects[[1]]
+for (i in 2:length(listOfBenthicTransects)) {
+  benthicTransects <- append(benthicTransects, listOfBenthicTransects[[i]])
+} 
 
 ##########################################
 
 # section to correct all the misspelled entries, which are a lot. need to come up with a function, won't be 
-# easy. Limit to the Benthic.Type now, I need to go on.
+# easy. Limit to the Benthic.Type for now. This requires some analysis of the typos
 
 benthicTypeLevels <- levels(factor(unlist(lapply(benthicTransects, function(x) levels(factor(x$Benthic.Type))))))
+benthicTypeLevels
+
+# correction routine, manual specification of the faulty entries
+
 benthicTransectsCorrect <- lapply(benthicTransects, function(x) {
   x[x=="algae"] <- "Algae"
   x[x=="rubble"] <- "Rubble"
@@ -65,43 +75,33 @@ benthicTransectsCorrect <- lapply(benthicTransects, function(x) {
 newLevels <- levels(factor(unlist(lapply(benthicTransectsCorrect, function(x) levels(factor(x$Benthic.Type))))))
 
 
-# # criteria must be composite though, as Morphology and Further.Info are restricted to corals
-# # one solution is to substitute all 0 with the most detailed info available
-# 
-# # not working, and also not efficient if it was, please learn how to work in R
-# 
-# criteriaRefiner <- function(frame) {
-#   for (i in 1:nrow(frame)) {
-#     if (frame$Morphology[i] == "0") {
-#       frame$Morphology[i] <- frame$Benthic.Type[i]
-#     }
-#     if (frame$Further.Info[i] == "0") {
-#       frame$Further.Info[i] <- frame$Morphology[i]
-#     }
-#   }
-#   return(frame)
-# }
-# 
-# # testFrame <- benthicTransects[[2]]
-# # for (i in 1:nrow(testFrame)) {
-# #   if (testFrame$Morphology[i] == "0") {
-# #     testFrame$Morphology[i] <- testFrame$Benthic.Type[i]
-# #   }
-# #   if (testFrame$Further.Info[i] == "0") {
-# #     testFrame$Further.Info[i] <- testFrame$Morphology[i]
-# #   }
-# # }
-# 
-# newBT <- lapply(benthicTransects, criteriaRefiner)
-# 
-# 
-# # DIO PORCO SCANNATO IN CROCE COI CHIODI NELLE MANI E LA MADONNA CHE RIDE
-# 
-# 
-# # i must keep going I have no time 
+#************************************************************************************************#
+
+# routine to substitute the missing entries in Morphology with Benthic.Type and 
+# of Further.Info with Morphology. Aim is to have entries for all the levels of details.
+
+# for reasons of the function it's necessary to get rid of the NAs, turn them to 0
+
+benthicTransectsCorrect <- lapply(benthicTransectsCorrect, function(x) {
+  x[is.na(x)] <- "0"
+  return(x)}
+)
+
+# function to substitute the relevant entries
+
+groupsRewriter <- function(frameTransect) {
+  frameTransect1 <- within(frameTransect, Morphology[Morphology=="0"] <- Benthic.Type[Morphology=="0"])
+  frameTransect2 <- within(frameTransect1, Further.Info[Further.Info=="0"] <- Morphology[Further.Info=="0"])
+  return(frameTransect2)
+}
+
+benthicTransectsComplete <- lapply(benthicTransectsCorrect, groupsRewriter) # yep
 
 
-# to be applied to all frames in the list
+
+# routine to calculate the percentage cover from the tape points per category. Column IDs should be
+# specified outside the function, at the beginning of the script as flags. Flags will have to become 
+# function arguments if the set of scripts has to be turned into a package at some point, which it should
 
 percentCoverCalc <- function(frameReplicate) {
   subsetFrame <- frameReplicate[,1:2]
@@ -109,57 +109,64 @@ percentCoverCalc <- function(frameReplicate) {
   nOfPoints$Benthic.Type <- rownames(nOfPoints)
   nOfPoints$Percentage.Cover <- nOfPoints[,1]*100/sum(nOfPoints[,1])
   rownames(nOfPoints) <- 1:nrow(nOfPoints)
-  nOfPoints <- nOfPoints[,c(2,1,3)]
+  nOfPoints <- nOfPoints[,c(2,1,3)] # reorders the columns with type, % cover and points
   colnames(nOfPoints) <- c("Type", "Points", "Cover")
   return(nOfPoints)
 }
 
-pointsAndCover <- lapply(benthicTransectsCorrect, percentCoverCalc)
+pointsAndCover <- lapply(benthicTransectsComplete, percentCoverCalc)
 
 # need to have all frames with the same levels. they have to be the sum of all the available levels
 
-# now it is a list of data frames of different length and different levels. Empty levels must be
-# added as new lines to each frame, with 0 percentage (don't even want to think about the nightmare of
-# going through this for separate years and probably different observers and compilers)
-
+# first build a dummy frame with all the levels and 0 as entries for cover and points
 dummyFrame <- as.data.frame(cbind(newLevels, rep(0, length(newLevels)), rep(0, length(newLevels))))
-colnames(dummyFrame) <- names(pointsAndCover[[1]])
-dummyFrame
+colnames(dummyFrame) <- names(pointsAndCover[[1]]) # rename the columns for consistency
 
-# aggregate the levels
+# then append the dummy data frame at the end of each transect data frame. A bit of reorganization,
+# column renaming and class manipulation is in the routine too to keep things as smooth as possible
 
 pointsAndCoverComplete <- lapply(pointsAndCover, function (x) {
-  completeLevels <- as.data.frame(rbind(x, dummyFrame))
-  colnames(dummyFrame) <- names(dummyFrame)
-  completeLevels$Points <- as.numeric(as.character(completeLevels$Points))
-  completeLevels$Cover <- as.numeric(as.character(completeLevels$Cover))
-  oneEntryList <- split(completeLevels, completeLevels$Type)
+  completeLevels <- as.data.frame(rbind(x, dummyFrame)) # append dummy frame
+  colnames(dummyFrame) <- names(dummyFrame) # rename columns as step above changes the names
+  completeLevels$Points <- as.numeric(as.character(completeLevels$Points)) # redefine class to numeric
+  completeLevels$Cover <- as.numeric(as.character(completeLevels$Cover)) # redefine class to numeric
+  
+  # split-apply-combine routine follows
+  
+  oneEntryList <- split(completeLevels, completeLevels$Type) # splits on the benthic type
   oneEntryListAgg <- lapply(oneEntryList, function(y) {
-    z <- c(levels(factor(y[,1])), colSums(y[,2:3]))
+    z <- c(levels(factor(y[,1])), colSums(y[,2:3])) # sums points and cover per benthic type
     return(z)}
   )
-  oneEntry <- as.data.frame(abind(oneEntryListAgg, along = 0))
-  colnames(oneEntry) <- names(dummyFrame)
+  oneEntry <- as.data.frame(abind(oneEntryListAgg, along = 0)) # recombines all of it into one frame
+  
+  # polishing follows
+  
+  colnames(oneEntry) <- names(dummyFrame) 
   oneEntry$Points <- as.numeric(as.character(oneEntry$Points))
   oneEntry$Cover <- as.numeric(as.character(oneEntry$Cover))
   return(oneEntry)
 })
 
 # adds a column with the corresponding replicate name to each dataframe
+
 for (i in 1:length(pointsAndCoverComplete)) {
   pointsAndCoverComplete[[i]]$Replicate <- rep(names(pointsAndCoverComplete[i]), 
                                                nrow(pointsAndCoverComplete[[i]]))
   pointsAndCoverComplete[[i]]$Location <- substr(pointsAndCoverComplete[[i]]$Replicate,
                                                  1, nchar(pointsAndCoverComplete[[i]]$Replicate)-1)
 }
-# the script so far has not done anything
+
+# now the transect frames are correctly named, organized and the %cover is calculated.
+# all the dataframes are merged together by row, renaming and reclassing follows
 
 benthicData <- as.data.frame(abind(pointsAndCoverComplete, along = 1))
 benthicData$Points <- as.numeric(as.character(benthicData$Points))
 benthicData$Cover <- as.numeric(as.character(benthicData$Cover))
 rownames(benthicData) <- 1:nrow(benthicData)
 
-# now can do summary statistics over the replicate
+# now can do summary statistics over the replicate, mean and sd or whatever else. 
+# recursive split-apply-combine on the benthic type and the location
 
 typeSplit <- split(benthicData, benthicData$Type)
 locationSplit <- lapply(typeSplit, function(x) split(x, x$Location))
@@ -171,20 +178,36 @@ meanAndSdList <- lapply(locationSplit, function(x) {
     return(meanSd)
   })
 })
+
+# nested lists on the second dimension are remerged first on the benthic type factor...
+
 meanAndSdTmp <- lapply(meanAndSdList, function(x) as.data.frame(abind(x, along = 1)))
+
+# ... and then on the location factor. Usual renaming and reclassing follows
+
 meanAndSd <- as.data.frame(abind(meanAndSdTmp, along = 1))
 rownames(meanAndSd) <- 1:nrow(meanAndSd)
 colnames(meanAndSd) <- c("Type", "Mean", "Sd", "Location")
 meanAndSd$Mean <- as.numeric(as.character(meanAndSd$Mean))
 meanAndSd$Sd <- as.numeric(as.character(meanAndSd$Sd))
-# order factors of stations for plot
+
+# order factors of stations for plot: two steps required:
+# first order the data frame according to the indices of the namesOfLocations object
+
+namesOfLocations
+
+myFrame <- meanAndSd[with(meanAndSd, order(Location)),] # to be continued
+
+# then assign unique values to the levels of the Location column to keep the order for the plot
+
+# abiotic types can be lumped into one single type. However, to do that I'd wait to see other datasets
 
 
 # plot
 
 library(RColorBrewer)
 par(mar = c(0, 4, 0, 0))
-display.brewer.all()
+#display.brewer.all()
 nOfColors <- length(levels(meanAndSd$Type))
 getPalette <- colorRampPalette(brewer.pal(11, "BrBG"))
 #myPalette <- doublePalette[seq(3,length(doublePalette),1)]
