@@ -194,11 +194,11 @@ meanAndSd$Sd <- as.numeric(as.character(meanAndSd$Sd))
 # order factors of stations for plot: two steps required:
 # first order the data frame according to the indices of the namesOfLocations object
 
-namesOfLocations
-
-myFrame <- meanAndSd[with(meanAndSd, order(Location)),] # to be continued
+meanAndSd <- meanAndSd[order(match(meanAndSd$Location, namesOfLocations)),] # easy peasy
 
 # then assign unique values to the levels of the Location column to keep the order for the plot
+
+meanAndSd$Location <- factor(meanAndSd$Location, levels = unique(meanAndSd$Location))
 
 # abiotic types can be lumped into one single type. However, to do that I'd wait to see other datasets
 

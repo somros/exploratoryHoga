@@ -75,6 +75,8 @@ sites <- c("A", "B", "C")
 
 dataAllYears <- dataAllYears[1:124,]
 
+# gets rid of zeros as characters in the datasets
+
 for (i in 1:ncol(dataAllYears)) {
   if (is.numeric(dataAllYears[,i])==T) {
     dataAllYears[,i] <- dataAllYears[,i]
@@ -464,12 +466,12 @@ lineplot <- ggplot(data = completeByOrder,
   facet_wrap( ~ Order, nrow = 3 )
 lineplot
 
-ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceArea.pdf", area,
-       width=5, height=3, useDingbats=T)
-ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceBars.pdf", bar,
-       width=5, height=3, useDingbats=T)
-ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceLines.pdf", lineplot,
-       width=9, height=10, useDingbats=T)
+# ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceArea.pdf", area,
+#        width=5, height=3, useDingbats=T)
+# ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceBars.pdf", bar,
+#        width=5, height=3, useDingbats=T)
+# ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/spongeAbundanceLines.pdf", lineplot,
+#        width=9, height=10, useDingbats=T)
 
 # calculates the coefficient of variation
 
