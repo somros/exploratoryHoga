@@ -119,9 +119,60 @@ quadratsFate <- ggplot(data = smallFrame, aes(x = Year, y = Total, group = Quadr
 quadratsFate
 
 ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/quadratsFate.pdf", quadratsFate,
-       width=7, height=4, useDingbats=T)
+       width=7, height=3.5, useDingbats=T)
 
 # next thing to explore is the variability within and between sites
+
+# geom_stat uses the predict routine using by default the LOESS method (LOcal regrESSion)
+# which is a point-wise regression method. Note that the line is NOT an average. The 
+# shaded area is 95% point-wise confidence interval
+
+quadratsFateSmooth <- ggplot(data = smallFrame, aes(x = Year, y = Total))+
+  geom_smooth()+
+  geom_point(aes(shape = Quadrat))+
+  scale_color_manual(values = getPaletteQuad(nOfColorsQuad))+
+  scale_x_continuous(breaks = seq(5,16,1),
+                     labels = seq(5,16,1),
+                     limits = c(5,16))+
+  scale_y_continuous(limits = c(0,350),
+                     breaks = seq(0,350,50))+
+  labs(y=expression(paste(Sponge~density~(n~m^2))))+
+  theme_bw()+
+  theme(panel.grid.minor = element_blank(), 
+        panel.grid.major = element_blank())+
+  theme(plot.title = element_text(size=14, vjust=2))+
+  theme(axis.title.x = element_text(size=10,vjust=-0.5),
+        axis.title.y = element_text(size=10,vjust=0.5))+
+  theme(axis.text.x=element_text(size=10, angle = 60, 
+                                 hjust = 1, vjust = .9))+
+  theme(axis.text.y=element_text(size=10))+
+  facet_grid(. ~ Site, scales = "free")
+quadratsFateSmooth
+
+ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/quadratsVariability.pdf", quadratsFateSmooth,
+        width=7, height=3.5, useDingbats=T)
+
+# # summary stats. divide per year first
+# 
+# byYear <- split(smallFrame, smallFrame$Year)
+# siteAveragesPerYear <- lapply(byYear, function(x) {
+#   listOfLists <- split(x, x$Site)
+#   meanSitesTmp <- lapply(listOfLists, function(y) {
+#     meanY <- mean(y$Total)
+#     sdY <- sd(y$Total)
+#     frameToReturn <- data.frame(levels(factor(y$Year)), 
+#                                    levels(factor(y$Site)), meanY, sdY)
+#     return(frameToReturn)
+#   })
+#   meanSites <- as.data.frame(abind(meanSitesTmp, along = 0))
+#   return(meanSites)
+# })
+# 
+# head(siteAveragesPerYear[[1]])
+# 
+# 
+# 
+# head(smallFrame)
 
 
 
