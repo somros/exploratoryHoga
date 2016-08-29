@@ -97,6 +97,17 @@ groupsRewriter <- function(frameTransect) {
 
 benthicTransectsComplete <- lapply(benthicTransectsCorrect, groupsRewriter) # yep
 
+################################################################################################
+
+# routine to add column with coarse benthic type
+
+levels(factor(benthicTransectsComplete[[1]]$Benthic.Type))
+
+# function: take the benthic type out as vector, replace with coarse entry with similar function as above,
+# add column to the data frame with the new benthic type. applied to all frames in the list
+# recode the rest with a dynamic column identifier instead of benthic type to pick the desired aggregation
+# method
+
 
 
 # routine to calculate the percentage cover from the tape points per category. Column IDs should be
@@ -202,17 +213,27 @@ meanAndSd$Location <- factor(meanAndSd$Location, levels = unique(meanAndSd$Locat
 
 # abiotic types can be lumped into one single type. However, to do that I'd wait to see other datasets
 
+# create column for coarse benthic type
+
+levels(meanAndSd$Type)
+
+coarse <- c("Abiotic", "Algae", "Ascidian", "Abiotic", "Abiotic", "Hard coral",
+            "Other", "Other", "Abiotic", "Abiotic", "Abiotic", "Abiotic", "Soft coral",
+            "Sponge", "Seagrass", "Unknown", "Abiotic")
+meanAndSd$Coarse <- as.factor(rep(coarse, length(levels(meanAndSd$Location))))
+
+# need to add the means or do this early on, not working this way
 
 # plot
 
 library(RColorBrewer)
 par(mar = c(0, 4, 0, 0))
 #display.brewer.all()
-nOfColors <- length(levels(meanAndSd$Type))
-getPalette <- colorRampPalette(brewer.pal(11, "BrBG"))
+nOfColors <- length(levels(meanAndSd$Coarse))
+getPalette <- colorRampPalette(brewer.pal(9, "BrBG"))
 #myPalette <- doublePalette[seq(3,length(doublePalette),1)]
 
-benthicMonitoring <- ggplot(meanAndSd, aes(x=Location, y=Mean, fill=Type))+
+benthicMonitoring <- ggplot(meanAndSd, aes(x=Location, y=Mean, fill=Coarse))+
   geom_bar(stat = "identity", width = .7)+
   # geom_errorbar(data = buoy3Sampela, 
   #               aes(ymax = Mean + StdErr, ymin = Mean - StdErr),

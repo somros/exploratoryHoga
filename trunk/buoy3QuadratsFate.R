@@ -76,6 +76,21 @@ colnames(dataAllYears) <- c(names(dataAllYears)[1],
 
 transData <- as.data.frame(t(dataAllYears))
 transData <- transData[-1,] # gets rid of the line with the species IDs
+
+########################################################################################
+
+# polish it and write it out as .csv file for Shane
+
+# shaneData <- transData
+# rownames(shaneData) <- 1:nrow(shaneData)
+# shaneData <- shaneData[,c(((length(shaneData)-3):length(shaneData)), (length(shaneData)-4),
+#                           1:(length(shaneData)-5))]
+# write.csv(shaneData, "/home/somros/Documents/R/exploratoryHoga/output/buoy3_Data.csv")
+
+# totally useless as the species are not grouped, start from the other script instead
+
+#########################################################################################
+
 transData$Total <- rowSums(transData)
 
 # need to separate years (my x variable) and quadrats
@@ -118,8 +133,8 @@ quadratsFate <- ggplot(data = smallFrame, aes(x = Year, y = Total, group = Quadr
   facet_grid(. ~ Site, scales = "free")
 quadratsFate
 
-ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/quadratsFate.pdf", quadratsFate,
-       width=7, height=3.5, useDingbats=T)
+# ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/quadratsFate.pdf", quadratsFate,
+#        width=7, height=3.5, useDingbats=T)
 
 # next thing to explore is the variability within and between sites
 
@@ -149,8 +164,8 @@ quadratsFateSmooth <- ggplot(data = smallFrame, aes(x = Year, y = Total))+
   facet_grid(. ~ Site, scales = "free")
 quadratsFateSmooth
 
-ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/quadratsVariability.pdf", quadratsFateSmooth,
-        width=7, height=3.5, useDingbats=T)
+# ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/quadratsVariability.pdf", quadratsFateSmooth,
+#         width=7, height=3.5, useDingbats=T)
 
 # # summary stats. divide per year first
 # 
@@ -175,4 +190,36 @@ ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/quadratsVariability
 # head(smallFrame)
 
 
+# plot number(y+1) as function of number(y). this is actually meaningless as there are 2 gaps of 1
+# year
+
+head(smallFrame)
+
+smallFrame$TotalNextYear <- c(smallFrame$Total[(smallFrame$Year != 5)], 
+                              rep(NA, nrow(smallFrame[smallFrame$Year == 5,])))
+
+spongesInTime <- ggplot(data = smallFrame, 
+                        aes(x = Total, y = TotalNextYear, group = Quadrat))+
+  geom_point(aes(color = Quadrat))+
+  scale_color_manual(values = getPaletteQuad(nOfColorsQuad))+
+  scale_x_continuous(breaks = seq(50,300,50),
+                     labels = seq(50,300,50),
+                     limits = c(50,300))+
+  scale_y_continuous(limits = c(50,300),
+                     breaks = seq(50,300,50))+
+  labs(x="D(t)", y="D(t+1)")+
+  #geom_smooth(method = "lm")+
+  theme_bw()+
+  theme(panel.grid.minor = element_blank(), 
+        panel.grid.major = element_blank())+
+  theme(plot.title = element_text(size=14, vjust=2))+
+  theme(axis.title.x = element_text(size=10,vjust=-0.5),
+        axis.title.y = element_text(size=10,vjust=0.5))+
+  theme(axis.text.x=element_text(size=10, vjust = .9))+
+  theme(axis.text.y=element_text(size=10))+
+  facet_grid(. ~ Site)
+spongesInTime
+
+ggsave("/home/somros/Documents/R/exploratoryHoga/output/pics/prediction.pdf", spongesInTime,
+       width=7, height=2.8, useDingbats=T)
 
