@@ -1,5 +1,6 @@
-# 17/10/2016 script for MDS analysis on the Buoy 3 data. ONe of tw twin scripts for the moment, one
-# for across year comparison of the same site and one for across sites comparison of the same year. 
+# 27.10.2016 script for  CAP analysis. Ordination of sites depending on their composition, as decided by the abundance of each species,
+# correlated with environmental variables (namely time and space in this case). Environmental varibales are ANOVA-like factors and
+# not continuous dimensions. 
 
 
 require(abind)
@@ -141,8 +142,7 @@ rownames(kekes) <- names(kekes)
 
 dissMatrix <- 1-kekes
 
-fit <- cmdscale(dissMatrix, k = 2, add = T) 
-fitEig <- cmdscale(dissMatrix, k = 2, eig = T, add = T) 
+fit <- isoMDS(dissMatrix, k = 2) # this is a ***NON-METRIC*** MDS plot based on Brey-Curtis dissimilarity.
 
 distances <- as.data.frame(fit$points)
 rownames(distances) <- names(allMeansTrans)
@@ -159,18 +159,29 @@ for (i in 1:nrow(distances)) {
 
 # plot
 
-MDSplotYears <- ggplot(data = distances, aes(x = V1, y = V2, group = Site, color = Year))+
-  geom_hline(yintercept = 0)+
-  geom_vline(xintercept = 0)+
+MDSplot <- ggplot(data = distances, aes(x = V1, y = V2, group = Site, color = Year))+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  geom_vline(xintercept = 0, linetype = "dashed")+
   geom_text(aes(label = Year, color = Year), size = 4.5, 
             fontface = "bold", vjust = 0, nudge_y = 0.02)+
+  guides(color=FALSE)+
   geom_point(aes(shape = Site, color = Year), size = 2)+
+  scale_shape_manual(values = c(0,1,2))+
+  labs(x = "MDS1", y = "MDS2")+
   #geom_path(size = 1)+
-  #scale_x_continuous(limits = c(-.25,.25))+
-  #scale_y_continuous(limits = c(-.25,.25))+
-  theme_bw()#+
+  scale_x_continuous(limits = c(-.7,.7))+
+  scale_y_continuous(limits = c(-.7,.7))+
+  theme_bw()+
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank())#+
   #facet_grid(.~Site)
-MDSplotYears
+MDSplot
+
+ggsave("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Wellington/words/latex/hogaExploratory/Pics/MDSplot.pdf",
+               MDSplot, useDingbats = T, width = 6, height = 5)
 
 # calculating the dissimilarity matrix among all instances (site*year) we see an influence of space in clustering.
 # temporal variation and return to original conditions is a bit less evident but still well visible considering the 
@@ -179,26 +190,27 @@ MDSplotYears
 
 # CAP uses a dedicated package and starts from the species list
 
-# get eigenvalues
-
-eig <- eigenvals(fitEig)
-expVar <- (cumsum(eig/sum(eig))*100)[1:2] # how much of the variability of the original matrix do the first 2 axes explain?
-
 # need to build a dummy frame apparently with data
 
 dummyMatrix <- as.data.frame(cbind(distances$Year, distances$Site))
 colnames(dummyMatrix) <- c("Year", "Site")
 rownames(dummyMatrix) <- rownames(transMatrix)
 
+# different formulas mean different ordinations, depending on the included variables
+
 CAPall <- capscale(transMatrix ~ Year + Site, dummyMatrix, distance = "bray", add = T)
 CAPTime <- capscale(transMatrix ~ Year, dummyMatrix, distance = "bray", add = T)
 CAPSpace <- capscale(transMatrix ~ Site, dummyMatrix, distance = "bray", add = T)
+
+# plots for different formulas
 
 plot(CAPall)
 plot(CAPTime)
 plot(CAPSpace)
 
-components <- fortify(CAPall) # this is from the ggvegan package and allow to customize the plot, interface between vegan and ggplot
+# all the below is just to get fancy with ggplot. Packages vegan and ggvegan will do all the job
+
+components <- fortify(CAPall) # extract the coordinates from the cca objects calculated with capscale 
 components <- data.frame(lapply(components, function(x) {
   x <- gsub("Year", "", x)
   x <- gsub("Site", "", x)
@@ -207,23 +219,36 @@ components <- data.frame(lapply(components, function(x) {
 }))
 components$Dim1 <- as.numeric(as.character(components$Dim1))
 components$Dim2 <- as.numeric(as.character(components$Dim2))
+components$Label <- gsub("spe", "", components$Label)
 
 
-# plotter
+# plotting region
+
 plotData <- subset(components, components$Score != "biplot" & components$Score != "constraints" &
                     components$Score != "sites")
+plotData$ColorKey <- c(rep("species", 75), rep("year", 10), rep("site", 3)) # make this flexible on the iterations
+# fix levels
+plotData$ColorKey <- factor(plotData$ColorKey, levels = unique(plotData$ColorKey))
 
-CAPcool <- ggplot(data = plotData, aes(x = Dim1, y = Dim2, group = Label))+
-  geom_text(aes(label = Label, color = Score))+
+
+CAPplot <- ggplot(data = plotData, aes(x = Dim1, y = Dim2, group = ColorKey))+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  geom_vline(xintercept = 0, linetype = "dashed")+
   geom_segment(data = subset(plotData, plotData$Score == "centroids"),
-                             aes(x = 0, xend = Dim1, y = 0, yend = Dim2))+
-  geom_hline(yintercept = 0)+
-  geom_vline(xintercept = 0)+
-  
+               aes(x = 0, xend = Dim1, y = 0, yend = Dim2), arrow = arrow(length = unit(1/2, 'picas')))+
+  geom_text(aes(label = Label, color = ColorKey, size = ColorKey))+
+  scale_color_manual(values = c("darkgrey", "red3", "cyan4"))+
+  scale_size_discrete(range = c(4,8))+
   theme_bw()+
+  labs(x = "CAP1", y = "CAP2")+
+  scale_x_continuous(limits = c(-.8,.8))+
+  scale_y_continuous(limits = c(-.8,.8))+
   theme(
     panel.grid.major.x = element_blank(),
     panel.grid.minor.x = element_blank(),
     panel.grid.major.y = element_blank(),
     panel.grid.minor.y = element_blank())
-CAPcool
+CAPplot
+
+ggsave("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Wellington/words/latex/hogaExploratory/Pics/CAPplot.pdf",
+       CAPplot, useDingbats = T, width = 6.5, height = 5)
