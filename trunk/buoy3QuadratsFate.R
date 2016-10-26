@@ -6,11 +6,11 @@ require(plyr)
 require(ggplot2)
 require(reshape2)
 
-dataAllYears <- read.csv("/home/somros/Documents/R/exploratoryHoga/input/spongeAbundanceQuadrats.csv")
+dataAllYears <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/spongeAbundanceQuadrats.csv")
 
-# initiate information about the dataset
+# initiate information about the dataset  
 
-species <- read.csv("/home/somros/Documents/R/exploratoryHoga/input/speciesKey.csv")
+species <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/speciesKey.csv")
 species[species=="" | species==0] <- NA # drop all that is not a name, to be refined though
 
 # option 1: keep only the species (or at least what is close)
@@ -71,11 +71,18 @@ dataAllYears[is.na(dataAllYears)] <- 0 # turns NAs to zeroes
 colnames(dataAllYears) <- c(names(dataAllYears)[1],
                             substr(names(dataAllYears[,-1]), 2, nchar(names(dataAllYears[,-1]))))
 
+dataAllYears$Species <- speciesOrDescription
 
-# literally about transposing the dataframe here, nothing more. maybe melt?
+# literally about transposing the dataframe here, nothing more. 
 
-transData <- as.data.frame(t(dataAllYears))
-transData <- transData[-1,] # gets rid of the line with the species IDs
+transDatatmp <- as.data.frame(t(dataAllYears))
+transDatatmp <- transDatatmp[-1,] # gets rid of the line with the species IDs
+
+# need to turn it back to numeric because it all beccame factor in the meantime
+
+transData <- as.data.frame(apply(transDatatmp, 2, function(x) as.numeric(as.character(x))))
+
+rownames(transData) <- rownames(transDatatmp)
 
 ########################################################################################
 

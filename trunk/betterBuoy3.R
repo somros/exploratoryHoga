@@ -23,7 +23,7 @@ require(plyr)
 require(ggplot2)
 require(reshape2)
 
-dataAllYears <- read.csv("/home/somros/Documents/R/exploratoryHoga/input/spongeAbundanceQuadrats.csv")
+dataAllYears <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/spongeAbundanceQuadrats.csv")
 
 # set flags
 
@@ -31,7 +31,7 @@ flagRoutine <- "average" # can be either "sum" to add the 5 quadrats up, or any 
 
 # initiate information about the dataset
 
-species <- read.csv("/home/somros/Documents/R/exploratoryHoga/input/speciesKey.csv")
+species <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/speciesKey.csv")
 species[species=="" | species==0] <- NA # drop all that is not a name, to be refined though
 
 # option 1: keep only the species (or at least what is close)

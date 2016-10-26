@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "# Preliminary exploration of the Opwall Benthic data (the few things we have at the moment at least)\n\nsetwd(\"//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/MonitoringProgram/Benthic Data/subset/SUMMARIES/short\")\n\nrequire(\"reshape2\")\nrequire(\"ggplot2\")\n\ndata <- read.csv(\"allSites.csv\", header = T)\n# data <- data[1:35, -c(9,10)]\n\nhead(data)\n\n# separe means from SDs\n\ndataMeans <- data.frame(data[,1], data[,grepl(\"MEAN\", names(data))], data[,(length(data)-1)], data[,length(data)])\ncolnames(dataMeans) <- c(\"Type\", \"F\", \"C\", \"S\", \"Year\", \"Site\")\n\ndataSD <- data.frame(data[,1], data[,grepl(\"SD\", names(data))], data[,(length(data)-1)], data[,length(data)])\ncolnames(dataSD) <- c(\"Type\", \"F\", \"C\", \"S\", \"Year\", \"Site\")\n\n\n\nmeltData <- melt(dataMeans, id.vars = c(\"Type\", \"Year\", \"Site\"))\nmeltSD <- melt(dataSD, id.vars = c(\"Type\", \"Year\", \"Site\"))\nmeltData$SD <- meltSD$value\n\n# merging site and depth together because of facetting and factoring too\n\nmeltData$Location <- rep(0, nrow(meltData))\n\n\nfor (i in 1:nrow(meltData)) {\n  meltData$Location[i] <- paste(meltData$Site[i], meltData$variable[i], sep = \"\")\n}\n\nmeltData$Location <- factor(meltData$Location, \n                            levels = c(\"B3F\", \"B3C\", \"B3S\", \"SAMF\", \"SAMC\", \"SAMS\"))\n\nmyDodge <- position_dodge(width = .5)\n\n# breaking the plot into 2 doesn't mess up the errorbars\n\n# mind that line plots are not appropriate here as we have lots of gaps in the series\n\np1 <- ggplot(data = meltData, aes(x = Year, y = value, color = Type))+\n  geom_point(position = myDodge)+\n  geom_line(position = myDodge, size = 1.2)+\n  scale_x_continuous(breaks = 2002:2016,\n                     labels = 2:16)+\n  theme_bw()+\n  facet_wrap(~ Location)\np1\n\np2 <- p1 + geom_errorbar(data = meltData,\n                         aes(ymax = value+SD,\n                             ymin = value-SD),\n                         width = .1, position = myDodge)+\n  theme_bw()+\n  # scale_x_continuous(limits = c(2001,2016),\n  #                    breaks = 2002:2015, \n  #                    labels = 2:15)+\n  facet_wrap(~ Location)\np2\n\nggsave(\"//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Wellington/words/latex/hogaExploratory/Pics/benthicCover.pdf\",\n       p2, useDingbats = T) \n\n\n\n# vertical profiles. x is perc cover, y is depth (category), colour is benthic type, facet is year AND site\n# (large plot)\n\n# transform to log(value+1) the value column\n\nmeltDataProf <- meltData\nmeltDataProf$value <- log(meltDataProf$value+1)\n# meltDataProf$SD <- log(meltDataProf$SD+1) not this way. log before and take sd of logs if you want to include\n# uncertainty\n\n\nprofiles <- ggplot(data = meltDataProf, aes(x = value, y = rev(factor(variable)), group = Type, colour = Type))+\n  geom_path(size = 1)+ # nice one didn't know about this\n  # geom_errorbarh(aes(xmax = meltDataProf$value+meltDataProf$SD,\n  #                xmin = meltDataProf$value-meltDataProf$SD, heigth = .2))+\n  geom_point()+\n  #scale_x_continuous(labels = )+ # helps a tiny bit with the visualisation\n  scale_y_discrete(labels = rev(levels(factor(meltData$variable))))+\n  theme_bw()+\n  facet_wrap(Site~Year, nrow = 4)\nprofiles\n\nggsave(\"//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Wellington/words/latex/hogaExploratory/Pics/profiles.pdf\",\n       profiles, useDingbats = T) \n\n\n",
+    "created" : 1477348636696.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4107272402",
+    "id" : "506D397B",
+    "lastKnownWriteTime" : 1477349881,
+    "last_content_update" : 1477349881429,
+    "path" : "//staff/Home/SCIFAC/rovellal/DocumentsRedir/Projects/opwallBenthicDraft.R",
+    "project_path" : null,
+    "properties" : {
+    },
+    "relative_order" : 7,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
