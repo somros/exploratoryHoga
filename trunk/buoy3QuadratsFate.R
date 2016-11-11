@@ -6,11 +6,11 @@ require(plyr)
 require(ggplot2)
 require(reshape2)
 
-dataAllYears <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/spongeAbundanceQuadrats.csv")
+dataAllYears <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/spongeAbundanceQuadratsCleaned.csv")
 
 # initiate information about the dataset  
 
-species <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/speciesKey.csv")
+species <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/speciesKeyCleaned.csv")
 species[species=="" | species==0] <- NA # drop all that is not a name, to be refined though
 
 # option 1: keep only the species (or at least what is close)
@@ -52,7 +52,7 @@ sites <- c("A", "B", "C")
 
 # cut the whole thing to the first 125 rows, as below that it gets confused
 
-dataAllYears <- dataAllYears[1:124,]
+# dataAllYears <- dataAllYears[1:124,]
 
 # gets rid of zeros as characters in the datasets
 
@@ -110,7 +110,7 @@ transData$QuadratSite <- substr(quadratID, nchar(quadratID)-1, nchar(quadratID))
 
 # restrict to small data frame with only the total numbers and the quadrats IDs
 
-smallFrame <- transData[,125:129]
+smallFrame <- transData[,(ncol(transData)-4):ncol(transData)]
 
 library(RColorBrewer)
 par(mar = c(0, 4, 0, 0))

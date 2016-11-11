@@ -8,18 +8,18 @@ require(ggplot2)
 
 
 setwd("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3")
-myData <- read.csv("spongeAbundanceQuadrats.csv")
+myData <- read.csv("spongeAbundanceQuadratsCleaned.csv")
 
 # turn to numeric immediately
 
-myData <- myData[c(1:124),]
+#myData <- myData[c(1:124),] keep only for the uncleaned set here
 myData <- apply(myData, 2, as.numeric)
 myData[is.na(myData)] <- 0 # turns NAs in 0, as necessary for Bray-Curtis
 myData <- as.data.frame(myData)
 
 # definition of the species
 
-species <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/speciesKey.csv")
+species <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/speciesKeyCleaned.csv")
 species[species=="" | species==0] <- NA # drop all that is not a name, to be refined though
 
 speciesOrDescription <- list()

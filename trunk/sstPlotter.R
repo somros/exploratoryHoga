@@ -8,9 +8,8 @@ require(abind)
 require(plyr)
 require(lubridate)
 
-setwd("/home/somros/Documents/Data/Hoga/Temperature")
-
-dataSet <- read.table("wakatobi.txt", header = T, sep = "", dec = ".")
+dataSet <- read.table("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/wakatobi_SST.txt", 
+                      header = T, sep = "", dec = ".")
 days <- seq(as.Date("2000/11/28"), as.Date("2016/08/18"), "days")
 julianDays <- yday(days)
 
@@ -100,8 +99,6 @@ ts
 # mean values for that time because there is certainly a delay, assuming that there is an
 # effect at all. So how do we detect it if it's there? Where to look?
 
-head(dataSet)
-
 # guess I have to work with monthly averages at the very least
 
 monthListTmp <- split(dataSet, list(factor(dataSet$BM), factor(dataSet$BYYY)))
@@ -150,6 +147,46 @@ monthlyMeanInTime <- ggplot(data = timeSeries[timeSeries$Year %in% myYears,],
   geom_line()+
   facet_wrap(~ Month)
 monthlyMeanInTime
+
+
+# get climatology for Dec-Jan-Feb-Mar. 
+
+myYears <- 2004:2016
+myMonths <- c(12,1:3)
+
+dataSST <- dataSet[dataSet$BYYY %in% myYears,]
+dataSST <- dataSST[dataSST$BM %in%  myMonths,]
+
+# do it in excel, I'll come back to this later if the results encourage it
+
+# write.csv(dataSST, "//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/SST.csv")
+dataSST <- read.csv("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/SST.csv")
+
+dataSplit <- split(dataSST, dataSST$Clim)
+dataLapply <- lapply(dataSplit, function(x) mean(x$SST))
+dataCombined <- cbind(myYears[-1], unlist(dataLapply))
+dataCombined <- dataCombined[-c(6,8),]
+write.csv(dataCombined, "//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/cheat.csv")
+
+
+
+# SOI
+
+dataSOI <- read.table("//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/SOI.txt", header = T, sep = ",")
+dataSOI$Year <- substr(dataSOI$Date, 1, nchar(dataSOI$Date)-2)
+dataSOI$Month <- substr(dataSOI$Date, nchar(dataSOI$Date)-1, nchar(dataSOI$Date))
+mySOI <- dataSOI[dataSOI$Year %in% myYears,]
+mySOI$Month <- as.numeric(as.character(mySOI$Month))
+mySOI <- mySOI[mySOI$Month %in% myMonths,]
+mySOI <- mySOI[-(1:3),]
+mySOI$Index <- rep(1:(length(levels(factor(mySOI$Year)))-1), each = 4)
+splitSOI <- split(mySOI, mySOI$Index)
+lapplySOI <- lapply(splitSOI, function(x) mean(x$Value))
+meanSOI <- cbind(rep(myYears[-1], each = 3), rep(unlist(lapplySOI), each = 3))
+meanSOI <- meanSOI[meanSOI[,1] != 2010 & meanSOI[,1] != 2012,]
+write.csv(meanSOI, "//Staff/Home/SCIFAC/rovellal/DocumentsRedir/Data/Hoga/buoy3/cheatSOI.csv")
+
+
 
 
 

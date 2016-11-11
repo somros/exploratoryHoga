@@ -2,6 +2,10 @@
 # correlated with environmental variables (namely time and space in this case). Environmental varibales are ANOVA-like factors and
 # not continuous dimensions. 
 
+# 8.11.2016 contains the MDS analysis as well. use this for any communty analysis and keep the sandbox for the rest
+
+# TODO: play with T data and other plausible environmental variables if you want to go on a nice journal
+
 
 require(abind)
 require(MASS)
@@ -117,7 +121,7 @@ transMatrix <- t(allMeansTrans)
 
 grandBC <- list()
 
-for (i in 1:length(allMeansTrans)) {
+for (i in 1:length(allMeansTrans)) { # home-made Bray-Curtis, makes little sense as there's vegdist in vegan doing it but it's solid (validated)
   BC <- vector(mode = "logical", length = length(allMeansTrans))
   for (j in 1:length(allMeansTrans)) {
     reduced <- allMeansTrans[,c(i,j)]
